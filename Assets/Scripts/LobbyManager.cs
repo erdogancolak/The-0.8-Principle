@@ -3,11 +3,16 @@ using Photon.Realtime;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using WebSocketSharp;
 
 public class LobbyManager : MonoBehaviourPunCallbacks
 {
     [Header("UI Elements")]
     public TMP_InputField roomIdInput;
+
+    [Header("Nickname")]
+    public GameObject nicknamePanel;
+    public TMP_InputField nicknameInput;
 
     private void Start()
     {
@@ -42,5 +47,14 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("Joined Room: " + PhotonNetwork.CurrentRoom.Name);
         PhotonNetwork.LoadLevel("RoomScene");
+    }
+
+    public void SetNicknameButton()
+    {
+        if(!nicknameInput.text.IsNullOrEmpty())
+        {
+            PhotonNetwork.NickName = nicknameInput.text;
+            nicknamePanel.SetActive(false);
+        }
     }
 }

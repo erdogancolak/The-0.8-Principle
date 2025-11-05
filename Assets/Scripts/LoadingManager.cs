@@ -48,14 +48,14 @@ public class LoadingScreenManager : MonoBehaviourPunCallbacks
 
     public override void OnConnectedToMaster()
     {
-        Debug.Log("Photon: Master server'a bağlanıldı!");
         isConnected = true;
     }
 
     void OnLoadingComplete()
     {
-        Debug.Log("Yükleme tamamlandı! Odaya geçilebilir.");
-
-        SceneManager.LoadScene("LobbyScene");
+        if(isConnected)
+        {
+            SceneManager.LoadScene("LobbyScene");
+        }
     }
 }

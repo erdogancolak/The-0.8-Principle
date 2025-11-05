@@ -1,49 +1,78 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
 using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
-using UnityEngine;
-using UnityEngine.UI;
 
-public class RoomManager : MonoBehaviourPunCallbacks
+public class RoomPlayerListManager : MonoBehaviourPunCallbacks
 {
-    public TMP_Text roomIdText;
-    public TMP_Text infoText;
-    public Button startButton;
+    [Header("UI References")]
+    public Transform contentParent;       
+    public GameObject playerItemPrefab;
 
-    private void Start()
+    public TMP_Text roomCode;
+
+    private Dictionary<Player, GameObject> playerItems = new Dictionary<Player, GameObject>();
+
+
+    void Start()
     {
-        if (PhotonNetwork.InRoom)
-        {
-            roomIdText.text = "Room ID: " + PhotonNetwork.CurrentRoom.Name;
+        PhotonNetwork.AutomaticallySyncScene = true;
 
-            startButton.interactable = PhotonNetwork.IsMasterClient;
-            infoText.text = PhotonNetwork.IsMasterClient ?
-                "You are the host. Click Start when ready!" :
-                "Waiting for host to start...";
-        }
+        RefreshPlayerList();
     }
 
-    public void OnClickStartGame()
+    public override void OnJoinedRoom()
     {
-        if (PhotonNetwork.IsMasterClient)
-        {
-            PhotonNetwork.LoadLevel("GameScene"); 
-        }
+        RefreshPlayerList();
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
     {
-        infoText.text = "Player joined: " + newPlayer.NickName;
+        RefreshPlayerList();
     }
 
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
-        infoText.text = "Player left: " + otherPlayer.NickName;
+        RefreshPlayerList();
     }
 
-    public override void OnMasterClientSwitched(Player newMasterClient)
+    void RefreshPlayerList()
     {
-        startButton.interactable = PhotonNetwork.IsMasterClient;
-        infoText.text = "New host: " + newMasterClient.NickName;
+        foreach (Transform child in contentParent)
+            Destroy(child.gameObject);
+
+        playerItems.Clear();
+
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            GameObject newItem = Instantiate(playerItemPrefab, contentParent);
+            playerItems[player] = newItem;
+
+            TMP_Text nicknameText = newItem.transform.Find("Nickname").GetComponent<TMP_Text>();
+            Image playershow = newItem.transform.Find("PlayerShow").GetComponent<Image>();
+            Image ismasterclient = newItem.transform.Find("isMasterClient").GetComponent<Image>();
+
+            nicknameText.text = player.NickName;
+
+            playershow.gameObject.SetActive(player == PhotonNetwork.LocalPlayer);
+
+            ismasterclient.gameObject.SetActive(player.IsMasterClient);
+        }
+
+        roomCode.text = PhotonNetwork.CurrentRoom.Name;
+    }
+
+    public void StartGameButton()
+    {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            PhotonNetwork.LoadLevel("GameScene");
+        }
+        else
+        {
+
+        }
     }
 }
