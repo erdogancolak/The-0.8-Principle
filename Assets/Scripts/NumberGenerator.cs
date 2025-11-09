@@ -53,15 +53,15 @@ public class NumberGenerator : MonoBehaviour
         lastSelectedButton = clickedButton;
         selectedNumberText.text = number.ToString();
     }
-    void OnConfirmPressed()
+    public void OnConfirmPressed()
     {
         if (selectedNumber != -1)
         {
-            Debug.Log("Onaylandý! Seçilen sayý: " + selectedNumber);
+            SubmitNumberManager.Instance.SubmitNumber(selectedNumber);
         }
         else
         {
-            Debug.LogWarning("Henüz bir sayý seçilmedi!");
+            
         }
     }
 }

@@ -4,11 +4,10 @@ using UnityEngine.UI;
 
 public class GameManager : MonoBehaviourPunCallbacks
 {
-    public GameObject playerPanelPrefab; // Her oyuncunun kendi paneli olacak
+    public GameObject playerPanelPrefab;
 
     private void Start()
     {
-        // Her oyuncu için kendi panelini oluþtur
         if (PhotonNetwork.InRoom)
         {
             CreateMyPanel();
@@ -20,13 +19,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         GameObject panel = Instantiate(playerPanelPrefab, FindObjectOfType<Canvas>().transform);
         panel.name = "Panel_" + PhotonNetwork.NickName;
 
-        // Her oyuncu sadece kendi panelini görsün
-        foreach (var text in panel.GetComponentsInChildren<Text>())
-        {
-            text.text = "Hello " + PhotonNetwork.NickName;
-        }
-
-        // Paneli diðer oyuncularla paylaþma (herkese görünmesin)
         panel.GetComponent<CanvasGroup>().alpha = 1f;
         panel.GetComponent<CanvasGroup>().interactable = true;
         panel.GetComponent<CanvasGroup>().blocksRaycasts = true;
