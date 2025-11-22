@@ -1,4 +1,4 @@
-using Photon.Pun;
+﻿using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,7 +39,7 @@ public class SubmitNumberManager : MonoBehaviourPun
     [PunRPC]
     void RPC_PlayerSubmit(string playerName, int number)
     {
-        if(!submittedNumbers.ContainsKey(playerName))
+        if (!submittedNumbers.ContainsKey(playerName))
         {
             submittedNumbers.Add(playerName, number);
         }
@@ -65,8 +65,19 @@ public class SubmitNumberManager : MonoBehaviourPun
         Transform content = spawnedResultPanel.transform.Find("Scroll View/Viewport/Content");
         GameObject obj = Instantiate(resultPlayerPrefab, content);
 
-        obj.transform.Find("Nickname").GetComponent<TMPro.TMP_Text>().text = playerName;
-        obj.transform.Find("ResultNumber").transform.GetChild(0).GetComponent<TMPro.TMP_Text>().text = "?";
+        obj.transform.Find("Nickname").GetComponent<TMP_Text>().text = playerName;
+
+        if (RuleManager.Instance.activeRule == GameRule.HiddenVotes)
+        {
+            obj.transform.Find("ResultNumber").transform.GetChild(0).GetComponent<TMP_Text>().text = "?";
+        }
+        else
+        {
+            obj.transform.Find("ResultNumber").transform.GetChild(0).GetComponent<TMP_Text>().text = "?";
+        }
+
+        float hp = PlayerStatus.Instance.playerHP[playerName];
+        obj.transform.Find("PlayerHP").transform.GetChild(0).GetComponent<TMP_Text>().text = hp.ToString();
 
         bool isLocal = (playerName == PhotonNetwork.NickName);
         obj.transform.Find("PlayerShow").gameObject.SetActive(isLocal);
@@ -76,7 +87,10 @@ public class SubmitNumberManager : MonoBehaviourPun
     {
         if (submittedNumbers.Count == PhotonNetwork.CurrentRoom.PlayerCount)
         {
-            photonView.RPC("RPC_RevealAllNumbers", RpcTarget.All);
+            if (RuleManager.Instance.activeRule != GameRule.HiddenVotes)
+            {
+                photonView.RPC("RPC_RevealAllNumbers", RpcTarget.All);
+            }
 
             StartCoroutine(PlayAverageNumber());
         }
@@ -87,18 +101,9 @@ public class SubmitNumberManager : MonoBehaviourPun
         TMP_Text averageText = spawnedResultPanel.transform.Find("AverageNumber")?.GetComponent<TMP_Text>();
         TMP_Text lastResultText = spawnedResultPanel.transform.Find("LastResultNumber")?.GetComponent<TMP_Text>();
         TMP_Text winnerNicknameText = spawnedResultPanel.transform.Find("WinnerNickname")?.GetComponent<TMP_Text>();
-        if (averageText == null)
-        {
+
+        if (averageText == null || lastResultText == null || winnerNicknameText == null)
             yield break;
-        }
-        if (lastResultText == null)
-        {
-            yield break;
-        }
-        if (winnerNicknameText == null)
-        {
-            yield break;
-        }
 
         float duration = 3f;
         float elapsed = 0f;
@@ -118,7 +123,14 @@ public class SubmitNumberManager : MonoBehaviourPun
 
         duration = 1.5f;
         elapsed = 0f;
-        float target = avg * 0.8f;
+
+        float multiplier = 0.8f;
+        if (RuleManager.Instance.activeRule == GameRule.RandomMultiplier)
+        {
+            multiplier = Random.Range(0.5f, 0.9f);
+        }
+
+        float target = avg * multiplier;
         float epsilon = 0.01f;
 
         while (elapsed < duration)
@@ -129,16 +141,70 @@ public class SubmitNumberManager : MonoBehaviourPun
             yield return new WaitForSeconds(0.05f);
         }
 
-        lastResultText.text = avg + " * 0.8 = " + target.ToString("F1");
+        lastResultText.text = target.ToString("F1");
 
         yield return new WaitForSeconds(1f);
 
         float minDiff = submittedNumbers.Min(kvp => Mathf.Abs(kvp.Value - target));
 
-        var winners = submittedNumbers.Where(kvp => Mathf.Abs(Mathf.Abs(kvp.Value - target) - minDiff) < epsilon).Select(kvp => kvp.Key).ToList();
+        var winners = submittedNumbers
+            .Where(kvp => Mathf.Abs(Mathf.Abs(kvp.Value - target) - minDiff) < epsilon)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        if (RuleManager.Instance.activeRule == GameRule.TiePlayersLose)
+        {
+            if (winners.Count > 1)
+            {
+                Debug.Log("Kural aktif: TiePlayersLose → Berabere kalanlar kaybetti.");
+
+                winners.Clear();
+
+                float secondMin = submittedNumbers
+                    .Where(kvp => Mathf.Abs(kvp.Value - target) > minDiff)
+                    .Min(kvp => Mathf.Abs(kvp.Value - target));
+
+                winners = submittedNumbers
+                    .Where(kvp => Mathf.Abs(kvp.Value - target) == secondMin)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+            }
+        }
 
         winnerNicknameText.text = $"Winner(s): {string.Join(", ", winners)}";
+
+        yield return new WaitForSeconds(0.8f);
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            foreach (var kvp in submittedNumbers)
+            {
+                string player = kvp.Key;
+
+                if (!winners.Contains(player))
+                {
+                    PhotonView pv = PlayerStatus.Instance.GetComponent<PhotonView>();
+                    pv.RPC("RPC_TakeDamage", RpcTarget.All, player, 0.5f);
+                }
+            }
+
+            photonView.RPC("RPC_UpdateHPUI", RpcTarget.All);
+        }
     }
+
+    [PunRPC]
+    void RPC_UpdateHPUI()
+    {
+        Transform content = spawnedResultPanel.transform.Find("Scroll View/Viewport/Content");
+
+        foreach (Transform item in content)
+        {
+            string name = item.transform.Find("Nickname").GetComponent<TMP_Text>().text;
+            float hp = PlayerStatus.Instance.playerHP[name];
+            item.transform.Find("PlayerHP").transform.GetChild(0).GetComponent<TMP_Text>().text = hp.ToString();
+        }
+    }
+
     [PunRPC]
     void RPC_RevealAllNumbers()
     {
@@ -146,12 +212,12 @@ public class SubmitNumberManager : MonoBehaviourPun
 
         foreach (Transform item in content)
         {
-            string name = item.transform.Find("Nickname").GetComponent<TMPro.TMP_Text>().text;
+            string name = item.transform.Find("Nickname").GetComponent<TMP_Text>().text;
 
             if (submittedNumbers.ContainsKey(name))
             {
                 int number = submittedNumbers[name];
-                item.transform.Find("ResultNumber").transform.GetChild(0).GetComponent<TMPro.TMP_Text>().text = number.ToString();
+                item.transform.Find("ResultNumber").transform.GetChild(0).GetComponent<TMP_Text>().text = number.ToString();
             }
         }
     }

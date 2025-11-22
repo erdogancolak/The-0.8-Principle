@@ -42,6 +42,9 @@ MonoBehaviour:
   - RPC_AddPlayerResult
   - RPC_PlayerSubmit
   - RPC_RevealAllNumbers
+  - RPC_TakeDamage
+  - RPC_UpdateHPUI
+  - RPC_SetRule
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

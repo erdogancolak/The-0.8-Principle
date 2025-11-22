@@ -28,7 +28,7 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     {
         string randomRoomId = Random.Range(1000, 9999).ToString();
         RoomOptions options = new RoomOptions();
-        options.MaxPlayers = 2;
+        options.MaxPlayers = 8;
         PhotonNetwork.CreateRoom(randomRoomId, options);
     }
 
